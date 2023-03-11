@@ -65,10 +65,10 @@ void confusion(int startRow, int endRow);
 void inverseConfusion(int startRow, int endRow);
 
 //diffusion function
-void diffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned char * byteSequence);
+int diffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned char * byteSequence, int idx);
 
 //inverse diffusion function
-void inverseDiffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned char * byteSequence);
+void inverseDiffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned char * byteSequence, int idx);
 
 //convert iteration results to byte sequence
 void convertResultToByte(double * resultArray, unsigned char * byteSequence, int elems);

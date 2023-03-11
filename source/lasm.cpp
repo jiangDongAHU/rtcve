@@ -186,6 +186,8 @@ static void * lasmAssistantThreadDemo3(void * arg){
 
         generateBytes(2 * iterations, uCharResultArray1, uCharResultArray2, byteSequence);
 
+        int idx = 0;
+
         //performe confusion operation
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
             //wait the main thread to fetch a palin frame
@@ -204,7 +206,7 @@ static void * lasmAssistantThreadDemo3(void * arg){
             diffusionSeed[1] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[1];
             diffusionSeed[2] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[2];
 
-            diffusion(startRow, endRow, diffusionSeed, byteSequence);
+            idx = diffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
 
             //complete a round of diffusion
             sem_post(&frameIsProcessedMutex[threadIdx]);
@@ -417,6 +419,8 @@ static void * lasmAssistantThreadDemo4(void * arg){
         convertResultToByte(resultArray2, uCharResultArray2, iterations * 2);
         generateBytes(2 * iterations, uCharResultArray1, uCharResultArray2, byteSequence);
 
+        int idx = 0;
+
         //encrypt the video frame
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
             //wait the main thread to fetch a palin frame
@@ -435,7 +439,7 @@ static void * lasmAssistantThreadDemo4(void * arg){
             diffusionSeed[1] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[1];
             diffusionSeed[2] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[2];
 
-            diffusion(startRow, endRow, diffusionSeed, byteSequence);
+            idx = diffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
 
             //complete a round of diffusion
             sem_post(&frameIsProcessedMutex[threadIdx]);
@@ -443,6 +447,8 @@ static void * lasmAssistantThreadDemo4(void * arg){
 
         //decrypt the encrypted video frame
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
+            idx = (CONFUSION_DIFFUSION_ROUNDS - i - 1) * frameWidth * frameHeight * 3 / NUMBER_OF_THREADS;
+
             //wait the main thread to awake the assistant threads
             sem_wait(&frameIsPreparedMutex[threadIdx]);
 
@@ -451,7 +457,7 @@ static void * lasmAssistantThreadDemo4(void * arg){
             diffusionSeed[1] = tempFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameHeight - 1)[1];
             diffusionSeed[2] = tempFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameHeight - 1)[2];
 
-            inverseDiffusion(startRow, endRow, diffusionSeed, byteSequence);
+            inverseDiffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
 
             //complete a round of inverse diffusion operation
             sem_post(&frameIsProcessedMutex[threadIdx]);

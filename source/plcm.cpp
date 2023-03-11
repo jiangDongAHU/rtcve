@@ -174,6 +174,8 @@ static void * cplcmAssistantThreadDemo1(void * arg){
         convertResultToByte(iterationResultArray1, uCharResultArray1, iterations);
         convertResultToByte(iterationResultArray2, uCharResultArray2, iterations);
         generateBytes(iterations, uCharResultArray1, uCharResultArray2, byteSequence);
+
+        int idx = 0;
         
         //perform confusion and diffusion operations
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
@@ -193,7 +195,7 @@ static void * cplcmAssistantThreadDemo1(void * arg){
             diffusionSeed[1] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[1];
             diffusionSeed[2] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[2];
 
-            diffusion(startRow, endRow, diffusionSeed, byteSequence);
+            idx = diffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
 
             //complete a round of diffusion
             sem_post(&frameIsProcessedMutex[threadIdx]);
@@ -393,6 +395,8 @@ static void * cplcmAssistantThreadDemo2(void * arg){
         convertResultToByte(iterationResultArray1, uCharResultArray1, iterations);
         convertResultToByte(iterationResultArray2, uCharResultArray2, iterations);
         generateBytes(iterations, uCharResultArray1, uCharResultArray2, byteSequence);
+
+        int idx = 0;
         
         //perform confusion and diffusion operations
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
@@ -412,7 +416,7 @@ static void * cplcmAssistantThreadDemo2(void * arg){
             diffusionSeed[1] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[1];
             diffusionSeed[2] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[2];
 
-            diffusion(startRow, endRow, diffusionSeed, byteSequence);
+            idx = diffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
 
             //complete a round of diffusion
             sem_post(&frameIsProcessedMutex[threadIdx]);
@@ -420,6 +424,8 @@ static void * cplcmAssistantThreadDemo2(void * arg){
 
         //decrypt the encrypted frame
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
+            idx = (CONFUSION_DIFFUSION_ROUNDS - i - 1) * frameWidth * frameHeight * 3 / NUMBER_OF_THREADS;
+
             //wait the main thread to awake the assistant threads
             sem_wait(&frameIsPreparedMutex[threadIdx]);
 
@@ -428,7 +434,7 @@ static void * cplcmAssistantThreadDemo2(void * arg){
             diffusionSeed[1] = tempFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameHeight - 1)[1];
             diffusionSeed[2] = tempFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameHeight - 1)[2];
 
-            inverseDiffusion(startRow, endRow, diffusionSeed, byteSequence);
+            inverseDiffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
 
             //complete a round of inverse diffusion operation
             sem_post(&frameIsProcessedMutex[threadIdx]);
@@ -548,9 +554,8 @@ void LASM(double u, double x, double y, double * resultx, double * resulty){
 }
 
 //diffusion function
-void diffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned char * byteSequence){
+int diffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned char * byteSequence, int idx){
     int prei, prej;
-    int idx = 0; 
 
     for(int i = startRow ; i < endRow; i++)
         for(int j = 0; j < frameWidth; j++){
@@ -585,12 +590,13 @@ void diffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned
                 idx = idx + 1;
             }
         }
+    
+    return idx;
 }
 
 //inverse diffusion function
-void inverseDiffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned char * byteSequence){
+void inverseDiffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned char * byteSequence, int idx){
     int prei, prej;
-    int idx = 0; 
 
     for(int i = startRow ; i < endRow; i++)
         for(int j = 0; j < frameWidth; j++){
