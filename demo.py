@@ -9,7 +9,7 @@ root.withdraw()
 filePath = filedialog.askopenfilename()
 
 #convert the original video from YUV420 into RGB24 format.
-videoSize = 576
+videoSize = 480
 os.system('rm video/plainVideo.mp4')
 os.system('ffmpeg -s 352x288 -pix_fmt yuv420p -i ' + filePath + ' -pix_fmt rgb24' + ' video/output.rgb')
 os.system('ffmpeg -f rawvideo -pix_fmt rgb24 -s 352X288 -r 24 -i ' + 'video/output.rgb -vcodec libx265 -x265-params lossless=1 -pix_fmt yuv420p -r 24 -s ' + str(videoSize) + 'x' + str(videoSize) + ' video/plainVideo.mp4')
