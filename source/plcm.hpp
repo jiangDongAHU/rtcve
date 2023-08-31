@@ -52,11 +52,16 @@ double iteratePLCM(double controlParameter, double initialCondition, int iterati
 //Act XOR operation and store the bytes for encryption
 void generateBytes(int iterations, unsigned char * uCharResultArray1, unsigned char * uCharResultArray2, unsigned char * byteSequence);
 
-//generate parameters for initializing CPLCM
-void generateParametersForPLCM(double controlParameter, double * initialCondition, double * initParameterArray);
+//generate parameters for initializing assistant threads' PRBGs
+void generateParametersPLCM(double controlParameter1, double * initialCondition1, 
+                            double controlParameter2, double * initialCondition2,
+                            double * initParameterArray);
 
 //generate confusion seed for confusion operations
-int generateConfusionSeedForPLCM(double controlParameter, double * initialCondition);
+int generateConfusionSeedPLCM(double controlParameter, double * initialCondition);
+
+//generate diffusion seedd for diffusion operations
+void generateDiffusionSeedPLCM(double controlParameter, double * initialCondition, unsigned char * diffusionSeedArray);
 
 //confusion function
 void confusion(int startRow, int endRow);
@@ -68,7 +73,7 @@ void inverseConfusion(int startRow, int endRow);
 int diffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned char * byteSequence, int idx);
 
 //inverse diffusion function
-void inverseDiffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned char * byteSequence, int idx);
+int inverseDiffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned char * byteSequence, int idx);
 
 //convert iteration results to byte sequence
 void convertResultToByte(double * resultArray, unsigned char * byteSequence, int elems);

@@ -345,7 +345,7 @@ int lasmMainThreadDemo4(){
             printf("\033[1mDemo 4: encryption and decryption using 2DLASM (there may exist some delay).\033[m\n");
             printf("frame width: %d     | frame height: %d         | FPS: %d             | frames: %d\n", frameWidth, frameHeight, videoFPS, totalFrames);
             printf("assistant threads: %d | confusion rounds: %d       | diffusion rounds: %d | confusion seed: %d \n", NUMBER_OF_THREADS, CONFUSION_DIFFUSION_ROUNDS, CONFUSION_DIFFUSION_ROUNDS, confusionSeed);
-            printf("1000/FPS: %dms       | encryption time: %.2fms  | frame index: %d\n", (int)(1000 / videoFPS), (endTime - startTime) * 1000, frameCount);
+            printf("1000/FPS: %dms       | total time: %.2fms       | frame index: %d\n", (int)(1000 / videoFPS), (endTime - startTime) * 1000, frameCount);
         }
         frameCount ++;
 
@@ -373,6 +373,7 @@ static void * lasmAssistantThreadDemo4(void * arg){
     double * initParameterArray = p->initParameterArray;
     int nextThreadIdx = (threadIdx + 1) % NUMBER_OF_THREADS;
     unsigned char diffusionSeed[3];
+    unsigned char diffusionSeedArray[3 * CONFUSION_DIFFUSION_ROUNDS];
 
     int cols = frameWidth;
     int rows = frameHeight / NUMBER_OF_THREADS;
@@ -420,7 +421,7 @@ static void * lasmAssistantThreadDemo4(void * arg){
         generateBytes(2 * iterations, uCharResultArray1, uCharResultArray2, byteSequence);
 
         int idx = 0;
-
+        int diffusionSeedArrayIndex = 0;  
         //encrypt the video frame
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
             //wait the main thread to fetch a palin frame
@@ -438,6 +439,9 @@ static void * lasmAssistantThreadDemo4(void * arg){
             diffusionSeed[0] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[0];
             diffusionSeed[1] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[1];
             diffusionSeed[2] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[2];
+            diffusionSeedArray[diffusionSeedArrayIndex ++] = diffusionSeed[0];
+            diffusionSeedArray[diffusionSeedArrayIndex ++] = diffusionSeed[1];
+            diffusionSeedArray[diffusionSeedArrayIndex ++] = diffusionSeed[2];
 
             idx = diffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
 
@@ -447,17 +451,15 @@ static void * lasmAssistantThreadDemo4(void * arg){
 
         //decrypt the encrypted video frame
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
-            idx = (CONFUSION_DIFFUSION_ROUNDS - i - 1) * frameWidth * frameHeight * 3 / NUMBER_OF_THREADS;
-
             //wait the main thread to awake the assistant threads
             sem_wait(&frameIsPreparedMutex[threadIdx]);
 
             //fetch the diffusion seeds
-            diffusionSeed[0] = tempFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameHeight - 1)[0];
-            diffusionSeed[1] = tempFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameHeight - 1)[1];
-            diffusionSeed[2] = tempFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameHeight - 1)[2];
+            diffusionSeed[2] = diffusionSeedArray[--diffusionSeedArrayIndex];
+            diffusionSeed[1] = diffusionSeedArray[--diffusionSeedArrayIndex];
+            diffusionSeed[0] = diffusionSeedArray[--diffusionSeedArrayIndex];
 
-            inverseDiffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
+            idx = inverseDiffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
 
             //complete a round of inverse diffusion operation
             sem_post(&frameIsProcessedMutex[threadIdx]);

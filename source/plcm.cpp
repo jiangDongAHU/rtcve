@@ -24,15 +24,23 @@ int cplcmMainThreadDemo1(){
 
     //randomly select initial condition and control parameter
     srand(time(NULL));
-    double controlParameter = (double) rand() / RAND_MAX;
-    if(controlParameter > 0.5)
-        controlParameter = 1 - controlParameter;
-    double initialCondition = (double) rand() / RAND_MAX;
+    //randomly select initial conditions and control parameters
+    srand(time(NULL));
+    double controlParameter1 = (double) rand() / RAND_MAX;
+    if(controlParameter1 > 0.5)
+        controlParameter1 = 1 - controlParameter1;
+    double initialCondition1 = (double) rand() / RAND_MAX;
+
+    double controlParameter2 = (double) rand() / RAND_MAX;
+    if(controlParameter2 > 0.5)
+        controlParameter2 = 1 - controlParameter2;
+    double initialCondition2 = (double) rand() / RAND_MAX;
+
    
     //generate a set of parameters for initializing the PRBGs of the assistant threads
     double * initParameterArray = (double *)malloc(4 * NUMBER_OF_THREADS * sizeof(double));
     int iterations = (frameWidth * frameHeight * 3 * CONFUSION_DIFFUSION_ROUNDS) / (BYTES_RESERVED * NUMBER_OF_THREADS);
-    generateParametersForPLCM(controlParameter, &initialCondition, initParameterArray);
+    generateParametersPLCM(controlParameter1, &initialCondition1, controlParameter2, &initialCondition2, initParameterArray);
 
     //initialize the semaphores
     for(int i = 0; i < NUMBER_OF_THREADS; i++){
@@ -64,7 +72,9 @@ int cplcmMainThreadDemo1(){
         encryptedFrame = plainFrame.clone();
 
         //generate confusion seed
-        confusionSeed = abs(generateConfusionSeedForPLCM(controlParameter, &initialCondition)) % (CONFUSION_SEED_UPPER_BOUND - CONFUSION_SEED_LOWWER_BOUND) + CONFUSION_SEED_LOWWER_BOUND;
+        confusionSeed  = abs(generateConfusionSeedPLCM(controlParameter1, &initialCondition1)) % 
+                         (CONFUSION_SEED_UPPER_BOUND - CONFUSION_SEED_LOWWER_BOUND) + 
+                         CONFUSION_SEED_LOWWER_BOUND;
 
         //confusion and diffusion operation
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
@@ -228,15 +238,20 @@ int cplcmMainThreadDemo2(){
 
     //randomly select initial condition and control parameter
     srand(time(NULL));
-    double controlParameter = (double) rand() / RAND_MAX;
-    if(controlParameter > 0.5)
-        controlParameter = 1 - controlParameter;
-    double initialCondition = (double) rand() / RAND_MAX;
+    double controlParameter1 = (double) rand() / RAND_MAX;
+    if(controlParameter1 > 0.5)
+        controlParameter1 = 1 - controlParameter1;
+    double initialCondition1 = (double) rand() / RAND_MAX;
+
+    double controlParameter2 = (double) rand() / RAND_MAX;
+    if(controlParameter2 > 0.5)
+        controlParameter2 = 1 - controlParameter2;
+    double initialCondition2 = (double) rand() / RAND_MAX;
 
     //generate a set of parameters for initializing the PRBGs of the assistant threads
     double * initParameterArray = (double *)malloc(4 * NUMBER_OF_THREADS * sizeof(double));
     int iterations = (frameWidth * frameHeight * 3 * CONFUSION_DIFFUSION_ROUNDS) / (BYTES_RESERVED * NUMBER_OF_THREADS);
-    generateParametersForPLCM(controlParameter, &initialCondition, initParameterArray);
+    generateParametersPLCM(controlParameter1, &initialCondition1, controlParameter2, &initialCondition2, initParameterArray);
 
     //initialize the semaphores
     for(int i = 0; i < NUMBER_OF_THREADS; i++){
@@ -266,7 +281,9 @@ int cplcmMainThreadDemo2(){
         encryptedFrame = plainFrame.clone();
 
         //generate confusion seed
-        confusionSeed = abs(generateConfusionSeedForPLCM(controlParameter, &initialCondition)) % (CONFUSION_SEED_UPPER_BOUND - CONFUSION_SEED_LOWWER_BOUND) + CONFUSION_SEED_LOWWER_BOUND;
+        confusionSeed  = abs(generateConfusionSeedPLCM(controlParameter1, &initialCondition1)) % 
+                         (CONFUSION_SEED_UPPER_BOUND - CONFUSION_SEED_LOWWER_BOUND) + 
+                         CONFUSION_SEED_LOWWER_BOUND;
 
         //perform confusion and diffusion operations
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
@@ -297,7 +314,7 @@ int cplcmMainThreadDemo2(){
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
             //awake all assistant threads to perform inverse diffusion operation
             for(int j = 0; j < NUMBER_OF_THREADS; j++)
-                sem_post(&frameIsPreparedMutex[j]);
+                sem_post(&frameIsPreparedMutex[j]); 
 
             //wait all assistant threads complete a round of inverse confusion operation
             for(int j = 0; j < NUMBER_OF_THREADS; j++)
@@ -331,7 +348,7 @@ int cplcmMainThreadDemo2(){
             printf("\033[1mDemo 2: encryption and decryption using PLCM (there may exist some delay).\033[m\n");
             printf("frame width: %d     | frame height: %d         | FPS: %d             | frames: %d\n", frameWidth, frameHeight, videoFPS, totalFrames);
             printf("assistant threads: %d | confusion rounds: %d       | diffusion rounds: %d | confusion seed: %d \n", NUMBER_OF_THREADS, CONFUSION_DIFFUSION_ROUNDS, CONFUSION_DIFFUSION_ROUNDS, confusionSeed);
-            printf("1000/FPS: %dms       | encryption time: %.2fms  | frame index: %d\n", (int)(1000 / videoFPS), (endTime - startTime) * 1000, frameCount);
+            printf("1000/FPS: %dms       | total time: %.2fms  | frame index: %d\n", (int)(1000 / videoFPS), (endTime - startTime) * 1000, frameCount);
         }
         frameCount ++;
 
@@ -359,6 +376,7 @@ static void * cplcmAssistantThreadDemo2(void * arg){
     double * initParameterArray = p->initParameterArray;
     int nextThreadIdx = (threadIdx + 1) % NUMBER_OF_THREADS;
     unsigned char diffusionSeed[3];
+    unsigned char diffusionSeedArray[3 * CONFUSION_DIFFUSION_ROUNDS];
 
     int cols = frameWidth;
     int rows = frameHeight / NUMBER_OF_THREADS;
@@ -396,8 +414,8 @@ static void * cplcmAssistantThreadDemo2(void * arg){
         convertResultToByte(iterationResultArray2, uCharResultArray2, iterations);
         generateBytes(iterations, uCharResultArray1, uCharResultArray2, byteSequence);
 
-        int idx = 0;
-        
+        int idx = 0;     
+        int diffusionSeedArrayIndex = 0;   
         //perform confusion and diffusion operations
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
             //wait the main thread to fetch a palin frame
@@ -415,6 +433,9 @@ static void * cplcmAssistantThreadDemo2(void * arg){
             diffusionSeed[0] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[0];
             diffusionSeed[1] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[1];
             diffusionSeed[2] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[2];
+            diffusionSeedArray[diffusionSeedArrayIndex ++] = diffusionSeed[0];
+            diffusionSeedArray[diffusionSeedArrayIndex ++] = diffusionSeed[1];
+            diffusionSeedArray[diffusionSeedArrayIndex ++] = diffusionSeed[2];
 
             idx = diffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
 
@@ -424,17 +445,16 @@ static void * cplcmAssistantThreadDemo2(void * arg){
 
         //decrypt the encrypted frame
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
-            idx = (CONFUSION_DIFFUSION_ROUNDS - i - 1) * frameWidth * frameHeight * 3 / NUMBER_OF_THREADS;
 
             //wait the main thread to awake the assistant threads
             sem_wait(&frameIsPreparedMutex[threadIdx]);
 
             //fetch the diffusion seeds
-            diffusionSeed[0] = tempFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameHeight - 1)[0];
-            diffusionSeed[1] = tempFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameHeight - 1)[1];
-            diffusionSeed[2] = tempFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameHeight - 1)[2];
+            diffusionSeed[2] = diffusionSeedArray[--diffusionSeedArrayIndex];
+            diffusionSeed[1] = diffusionSeedArray[--diffusionSeedArrayIndex];
+            diffusionSeed[0] = diffusionSeedArray[--diffusionSeedArrayIndex];
 
-            inverseDiffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
+            idx = inverseDiffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
 
             //complete a round of inverse diffusion operation
             sem_post(&frameIsProcessedMutex[threadIdx]);
@@ -496,25 +516,46 @@ void generateBytes(int iterations, unsigned char * uCharResultArray1, unsigned c
         byteSequence[i] = uCharResultArray1[i] ^ uCharResultArray2[i];
 }
 
-void generateParametersForPLCM(double controlParameter, double * initialCondition, double * initParameterArray){
-    //preiterate PLCM
-    for(int i = 0; i < PRE_ITERATIONS; i++)
-        * initialCondition = PLCM(controlParameter, * initialCondition);
+//generate parameters for initializing assistant threads' PRBGs
+void generateParametersPLCM(double controlParameter1, double * initialCondition1, 
+                            double controlParameter2, double * initialCondition2,
+                            double * initParameterArray){
+    for(int i = 0; i < PRE_ITERATIONS; i++){
+        * initialCondition1 = PLCM(controlParameter1, * initialCondition1);
+        * initialCondition2 = PLCM(controlParameter2, * initialCondition2);
+    }
 
     for(int i = 0; i < NUMBER_OF_THREADS * 4; i++){
-        initParameterArray[i] = PLCM(controlParameter, * initialCondition);
-        * initialCondition = initParameterArray[i];
+        if(i % 2 == 0){
+            initParameterArray[i] = PLCM(controlParameter1, * initialCondition1);
+            * initialCondition1   = initParameterArray[i];
+        }
+
+        else
+            initParameterArray[i] = PLCM(controlParameter2, * initialCondition2);
+            * initialCondition2   = initParameterArray[i];
     }
 }
 
 //generate confusion seed for confusion operations
-int generateConfusionSeedForPLCM(double controlParameter, double * initialCondition){
-    * initialCondition = PLCM(controlParameter, * initialCondition);
-    double iterationResult = * initialCondition;
+int generateConfusionSeedPLCM(double controlParameter, double * initialCondition){
+    * initialCondition      = PLCM(controlParameter, * initialCondition);
+    double iterationResult  = * initialCondition;
     int confusionSeedResult = 0;
 
     memcpy(&confusionSeedResult, (unsigned char *)&iterationResult, BYTES_RESERVED);
     return confusionSeedResult;   
+}
+
+//generate diffusion seedd for diffusion operations
+void generateDiffusionSeedPLCM(double controlParameter, double * initialCondition, unsigned char * diffusionSeedArray){
+    for(int i = 0; i < 3 * CONFUSION_DIFFUSION_ROUNDS; i++){
+        * initialCondition     = PLCM(controlParameter, * initialCondition);
+        double iterationResult = * initialCondition;
+
+        unsigned char * diffusionSeed = &diffusionSeedArray[i];
+        memcpy(diffusionSeed, (unsigned char *)&iterationResult, 1);
+    }
 }
 
 //confusion function
@@ -595,42 +636,47 @@ int diffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned 
 }
 
 //inverse diffusion function
-void inverseDiffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned char * byteSequence, int idx){
+int inverseDiffusion(int startRow, int endRow, unsigned char * diffusionSeed, unsigned char * byteSequence, int idx){
     int prei, prej;
 
-    for(int i = startRow ; i < endRow; i++)
-        for(int j = 0; j < frameWidth; j++){
+    for(int i = endRow - 1; i >= startRow; i--)
+        for(int j = frameWidth - 1; j >= 0; j--){
             if(j != 0){
                 prei = i;
                 prej = j - 1;
-                decryptedFrame.at<Vec3b>(i, j)[0] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[0] ^ tempFrame.at<Vec3b>(prei, prej)[0]) + 256 - byteSequence[idx]);
-                idx = idx + 1;
-                decryptedFrame.at<Vec3b>(i, j)[1] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[1] ^ tempFrame.at<Vec3b>(prei, prej)[1]) + 256 - byteSequence[idx]);
-                idx = idx + 1;
+
+                idx = idx - 1;
                 decryptedFrame.at<Vec3b>(i, j)[2] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[2] ^ tempFrame.at<Vec3b>(prei, prej)[2]) + 256 - byteSequence[idx]);
-                idx = idx + 1;
+                idx = idx - 1;
+                decryptedFrame.at<Vec3b>(i, j)[1] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[1] ^ tempFrame.at<Vec3b>(prei, prej)[1]) + 256 - byteSequence[idx]);
+                idx = idx - 1;
+                decryptedFrame.at<Vec3b>(i, j)[0] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[0] ^ tempFrame.at<Vec3b>(prei, prej)[0]) + 256 - byteSequence[idx]);
             }
 
             else if(i != startRow && j == 0){
                 prei = i - 1;
                 prej = frameWidth - 1;
-                decryptedFrame.at<Vec3b>(i, j)[0] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[0] ^ tempFrame.at<Vec3b>(prei, prej)[0]) + 256 - byteSequence[idx]);
-                idx = idx + 1;
-                decryptedFrame.at<Vec3b>(i, j)[1] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[1] ^ tempFrame.at<Vec3b>(prei, prej)[1]) + 256 - byteSequence[idx]);
-                idx = idx + 1;
+
+                idx = idx - 1;
                 decryptedFrame.at<Vec3b>(i, j)[2] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[2] ^ tempFrame.at<Vec3b>(prei, prej)[2]) + 256 - byteSequence[idx]);
-                idx = idx + 1;
+                idx = idx - 1;
+                decryptedFrame.at<Vec3b>(i, j)[1] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[1] ^ tempFrame.at<Vec3b>(prei, prej)[1]) + 256 - byteSequence[idx]);
+                idx = idx - 1;
+                decryptedFrame.at<Vec3b>(i, j)[0] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[0] ^ tempFrame.at<Vec3b>(prei, prej)[0]) + 256 - byteSequence[idx]);
             }
 
             else if(i == startRow && j == 0){
-                decryptedFrame.at<Vec3b>(i, j)[0] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[0] ^ diffusionSeed[0]) + 256 - byteSequence[idx]);
-                idx = idx + 1;
-                decryptedFrame.at<Vec3b>(i, j)[1] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[1] ^ diffusionSeed[1]) + 256 - byteSequence[idx]);
-                idx = idx + 1;
+                idx = idx - 1;
                 decryptedFrame.at<Vec3b>(i, j)[2] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[2] ^ diffusionSeed[2]) + 256 - byteSequence[idx]);
-                idx = idx + 1;
+                idx = idx - 1;
+                decryptedFrame.at<Vec3b>(i, j)[1] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[1] ^ diffusionSeed[1]) + 256 - byteSequence[idx]);
+                idx = idx - 1;
+                decryptedFrame.at<Vec3b>(i, j)[0] = ((byteSequence[idx] ^ tempFrame.at<Vec3b>(i, j)[0] ^ diffusionSeed[0]) + 256 - byteSequence[idx]);
             }
+
         }
+
+    return idx;
 }
 
 //convert iteration results to byte sequence

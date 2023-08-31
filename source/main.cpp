@@ -17,8 +17,8 @@ int main(int argc, const char * argv[]){
         printf("input 0: exit.\n");
         printf("input 1: real-time encryption (confusion and diffusion) using PLCM.\n");
         printf("input 2: encryption and decryption using PLCM (there may exist some delay).\n");
-        printf("input 3: real-time encryption (confusion and diffusion) using 2DLASM.\n");
-        printf("input 4: encryption and decryption using 2DLASM (there may exist some delay).\n");
+        printf("input 3: real-time encryption (confusion and diffusion) using LASM.\n");
+        printf("input 4: encryption and decryption using LASM (there may exist some delay).\n");
         printf("-------------------------------------------------------------------------------\n");
         printf("\033[1minput instruction: \033[m");
 
