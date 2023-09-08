@@ -24,8 +24,6 @@ int cplcmMainThreadDemo1(){
 
     //randomly select initial condition and control parameter
     srand(time(NULL));
-    //randomly select initial conditions and control parameters
-    srand(time(NULL));
     double controlParameter1 = (double) rand() / RAND_MAX;
     if(controlParameter1 > 0.5)
         controlParameter1 = 1 - controlParameter1;
@@ -61,7 +59,6 @@ int cplcmMainThreadDemo1(){
         pthread_create(&th[i], NULL, cplcmAssistantThreadDemo1, (void *)&tp[i]);
 
     totalTime = 0;
-
     int frameCount = 0;
     //fetch and encrypt frames from video file
     while(capture.read(plainFrame)){
@@ -76,7 +73,7 @@ int cplcmMainThreadDemo1(){
                          (CONFUSION_SEED_UPPER_BOUND - CONFUSION_SEED_LOWWER_BOUND) + 
                          CONFUSION_SEED_LOWWER_BOUND;
 
-        //confusion and diffusion operation
+        //encrypt the video frames
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
             //confusion operation
             //plain frame is prepared, awake all assistant threads to perform confusion operation
@@ -101,12 +98,8 @@ int cplcmMainThreadDemo1(){
             tempFrame = encryptedFrame.clone();
         }
 
-        imshow("plain video", plainFrame);
-        imshow("encryption (confusion and diffusion) result", encryptedFrame);
-
-        //char encryptedFramePath[100];
-        //sprintf(encryptedFramePath, "images/encryptedFrame%d.tif", frameCount);
-        //imwrite(encryptedFramePath, encryptedFrame);
+        imshow("original frames", plainFrame);
+        imshow("encrypted frames", encryptedFrame);
 
         double endTime = getCPUSecond();
         totalTime = totalTime + (endTime - startTime);
@@ -118,9 +111,9 @@ int cplcmMainThreadDemo1(){
         
         if(frameCount % 10 == 0){
             system("clear");
-            printf("\033[1mDemo 1: real-time encryption (confusion and diffusion) using PLCM.\033[m\n");
+            printf("\033[1mDemo 1: real-time encryption using PLCM.\033[m\n");
             printf("frame width: %d     | frame height: %d         | FPS: %d             | frames: %d\n", frameWidth, frameHeight, videoFPS, totalFrames);
-            printf("assistant threads: %d | confusion rounds: %d       | diffusion rounds: %d | confusion seed: %d \n", NUMBER_OF_THREADS, CONFUSION_DIFFUSION_ROUNDS, CONFUSION_DIFFUSION_ROUNDS, confusionSeed);
+            printf("assistant threads: %-2d| confusion rounds: %d       | diffusion rounds: %d | confusion seed: %-4d \n", NUMBER_OF_THREADS, CONFUSION_DIFFUSION_ROUNDS, CONFUSION_DIFFUSION_ROUNDS, confusionSeed);
             printf("1000/FPS: %dms       | encryption time: %.2fms  | frame index: %d\n", (int)(1000 / videoFPS), (endTime - startTime) * 1000, frameCount);
         }
         frameCount ++;
@@ -148,6 +141,7 @@ static void * cplcmAssistantThreadDemo1(void * arg){
     double * initParameterArray = p->initParameterArray;
     int nextThreadIdx = (threadIdx + 1) % NUMBER_OF_THREADS;
     unsigned char diffusionSeed[3];
+    unsigned char diffusionSeedArray[3 * CONFUSION_DIFFUSION_ROUNDS];
 
     int cols = frameWidth;
     int rows = frameHeight / NUMBER_OF_THREADS;
@@ -185,13 +179,17 @@ static void * cplcmAssistantThreadDemo1(void * arg){
         convertResultToByte(iterationResultArray2, uCharResultArray2, iterations);
         generateBytes(iterations, uCharResultArray1, uCharResultArray2, byteSequence);
 
-        int idx = 0;
-        
+        //generate diffusion seeds
+        generateDiffusionSeedPLCM(controlParameter1, &initialCondition1, diffusionSeedArray);
+
+        int byteSequenceIdx       = 0;
+        int diffusionSeedArrayIdx = 0;      
         //perform confusion and diffusion operations
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
             //wait the main thread to fetch a palin frame
             sem_wait(&frameIsPreparedMutex[threadIdx]);
 
+            //perform confusion operation
             confusion(startRow, endRow);
 
             //complete a round of confusion
@@ -201,11 +199,11 @@ static void * cplcmAssistantThreadDemo1(void * arg){
             sem_wait(&frameIsPreparedMutex[threadIdx]);
 
             //fetch the diffusion seeds
-            diffusionSeed[0] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[0];
-            diffusionSeed[1] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[1];
-            diffusionSeed[2] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[2];
+            diffusionSeed[0] = diffusionSeedArray[diffusionSeedArrayIdx ++];
+            diffusionSeed[1] = diffusionSeedArray[diffusionSeedArrayIdx ++];
+            diffusionSeed[2] = diffusionSeedArray[diffusionSeedArrayIdx ++];
 
-            idx = diffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
+            byteSequenceIdx = diffusion(startRow, endRow, diffusionSeed, byteSequence, byteSequenceIdx);
 
             //complete a round of diffusion
             sem_post(&frameIsProcessedMutex[threadIdx]);
@@ -285,7 +283,7 @@ int cplcmMainThreadDemo2(){
                          (CONFUSION_SEED_UPPER_BOUND - CONFUSION_SEED_LOWWER_BOUND) + 
                          CONFUSION_SEED_LOWWER_BOUND;
 
-        //perform confusion and diffusion operations
+        //encrypt the original frame
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
             //plain frame is prepared, awake all assistant threads to perform confusion operation
             for(int j = 0; j < NUMBER_OF_THREADS; j++)
@@ -333,8 +331,9 @@ int cplcmMainThreadDemo2(){
             tempFrame = decryptedFrame.clone();
         }
 
-        imshow("encryption (confusion and diffusion) result", encryptedFrame);
-        imshow("decryption (inverse diffusion and confusion) result ", decryptedFrame);
+        imshow("original frames", plainFrame);
+        imshow("encrypted frames", encryptedFrame);
+        imshow("decrypted frames", decryptedFrame);
         
         double endTime = getCPUSecond();
 
@@ -347,7 +346,7 @@ int cplcmMainThreadDemo2(){
             system("clear");
             printf("\033[1mDemo 2: encryption and decryption using PLCM (there may exist some delay).\033[m\n");
             printf("frame width: %d     | frame height: %d         | FPS: %d             | frames: %d\n", frameWidth, frameHeight, videoFPS, totalFrames);
-            printf("assistant threads: %d | confusion rounds: %d       | diffusion rounds: %d | confusion seed: %d \n", NUMBER_OF_THREADS, CONFUSION_DIFFUSION_ROUNDS, CONFUSION_DIFFUSION_ROUNDS, confusionSeed);
+            printf("assistant threads: %-2d| confusion rounds: %d       | diffusion rounds: %d | confusion seed: %d \n", NUMBER_OF_THREADS, CONFUSION_DIFFUSION_ROUNDS, CONFUSION_DIFFUSION_ROUNDS, confusionSeed);
             printf("1000/FPS: %dms       | total time: %.2fms  | frame index: %d\n", (int)(1000 / videoFPS), (endTime - startTime) * 1000, frameCount);
         }
         frameCount ++;
@@ -414,8 +413,11 @@ static void * cplcmAssistantThreadDemo2(void * arg){
         convertResultToByte(iterationResultArray2, uCharResultArray2, iterations);
         generateBytes(iterations, uCharResultArray1, uCharResultArray2, byteSequence);
 
-        int idx = 0;     
-        int diffusionSeedArrayIndex = 0;   
+        //generate diffusion seeds
+        generateDiffusionSeedPLCM(controlParameter1, &initialCondition1, diffusionSeedArray);
+
+        int byteSequenceIdx       = 0;    
+        int diffusionSeedArrayIdx = 0;  
         //perform confusion and diffusion operations
         for(int i = 0; i < CONFUSION_DIFFUSION_ROUNDS; i++){
             //wait the main thread to fetch a palin frame
@@ -430,14 +432,11 @@ static void * cplcmAssistantThreadDemo2(void * arg){
             sem_wait(&frameIsPreparedMutex[threadIdx]);
 
             //fetch the diffusion seeds
-            diffusionSeed[0] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[0];
-            diffusionSeed[1] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[1];
-            diffusionSeed[2] = encryptedFrame.at<Vec3b>(rows * (nextThreadIdx + 1) - 1, frameWidth - 1)[2];
-            diffusionSeedArray[diffusionSeedArrayIndex ++] = diffusionSeed[0];
-            diffusionSeedArray[diffusionSeedArrayIndex ++] = diffusionSeed[1];
-            diffusionSeedArray[diffusionSeedArrayIndex ++] = diffusionSeed[2];
+            diffusionSeed[0] = diffusionSeedArray[diffusionSeedArrayIdx ++];
+            diffusionSeed[1] = diffusionSeedArray[diffusionSeedArrayIdx ++];
+            diffusionSeed[2] = diffusionSeedArray[diffusionSeedArrayIdx ++];
 
-            idx = diffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
+            byteSequenceIdx = diffusion(startRow, endRow, diffusionSeed, byteSequence, byteSequenceIdx);
 
             //complete a round of diffusion
             sem_post(&frameIsProcessedMutex[threadIdx]);
@@ -450,11 +449,11 @@ static void * cplcmAssistantThreadDemo2(void * arg){
             sem_wait(&frameIsPreparedMutex[threadIdx]);
 
             //fetch the diffusion seeds
-            diffusionSeed[2] = diffusionSeedArray[--diffusionSeedArrayIndex];
-            diffusionSeed[1] = diffusionSeedArray[--diffusionSeedArrayIndex];
-            diffusionSeed[0] = diffusionSeedArray[--diffusionSeedArrayIndex];
+            diffusionSeed[2] = diffusionSeedArray[--diffusionSeedArrayIdx];
+            diffusionSeed[1] = diffusionSeedArray[--diffusionSeedArrayIdx];
+            diffusionSeed[0] = diffusionSeedArray[--diffusionSeedArrayIdx];
 
-            idx = inverseDiffusion(startRow, endRow, diffusionSeed, byteSequence, idx);
+            byteSequenceIdx = inverseDiffusion(startRow, endRow, diffusionSeed, byteSequence, byteSequenceIdx);
 
             //complete a round of inverse diffusion operation
             sem_post(&frameIsProcessedMutex[threadIdx]);
@@ -562,7 +561,7 @@ void generateDiffusionSeedPLCM(double controlParameter, double * initialConditio
 void confusion(int startRow, int endRow){
     for(int r = startRow; r < endRow; r++)
         for(int c = 0; c < frameWidth; c++){
-            int nr = (r + c) % frameHeight;// + startRow;
+            int nr = (r + c) % frameHeight;
             int temp = round(confusionSeed * sin(2 * PI * nr / frameHeight));
             int nc = ((c + temp) % frameWidth + frameWidth) % frameWidth;
 

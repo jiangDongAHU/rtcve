@@ -27,4 +27,7 @@ void generateParametersForLASM(double u, double * x, double * y, double * initPa
 //generate confusion seed for confusion operations
 int generateConfusionSeedForLASM(double u, double * x, double * y);
 
+//generate diffsion seed for diffusion operations
+void generateDiffusionSeedLASM(double u, double * x, double * y, unsigned char * diffusionSeedArray);
+
 #endif

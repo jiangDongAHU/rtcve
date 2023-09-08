@@ -15,9 +15,9 @@ int main(int argc, const char * argv[]){
         printf("\033[1mdemo for real-time chaotic video encryption based on multithreaded parallel\033[m\n");
         printf("\033[1mconfusion and diffusion\033[m\n\n");
         printf("input 0: exit.\n");
-        printf("input 1: real-time encryption (confusion and diffusion) using PLCM.\n");
+        printf("input 1: real-time encryption using PLCM.\n");
         printf("input 2: encryption and decryption using PLCM (there may exist some delay).\n");
-        printf("input 3: real-time encryption (confusion and diffusion) using LASM.\n");
+        printf("input 3: real-time encryption using LASM.\n");
         printf("input 4: encryption and decryption using LASM (there may exist some delay).\n");
         printf("-------------------------------------------------------------------------------\n");
         printf("\033[1minput instruction: \033[m");
