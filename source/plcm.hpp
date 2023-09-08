@@ -15,7 +15,7 @@
 using namespace cv;
 
 #define VIDEO_FILE_NAME "video/plainVideo.mp4"
-#define NUMBER_OF_THREADS 32
+#define NUMBER_OF_THREADS 8
 #define CONFUSION_DIFFUSION_ROUNDS 5
 
 #define CONFUSION_SEED_UPPER_BOUND 10000
