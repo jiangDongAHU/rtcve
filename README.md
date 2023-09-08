@@ -40,8 +40,8 @@ Recommended setting:
 The main thread randomly selects a set of parameters to initialize its PRBG, and demonstrates different demos according to the input:
 
 * Input 0 : exit the program
-* Input 1 : real-time encryption (confusion and diffusion) using PLCM.
+* Input 1 : real-time encryption using PLCM.
 * input 2 : encryption and decryption using PLCM (there may exist some delay).
-* Input 3 : real-time encryption (confusion and diffusion) using 2DLASM.
-* input 4 : encryption and decryption using 2DLASM (there may exist some delay).
+* Input 3 : real-time encryption using LASM.
+* input 4 : encryption and decryption using LASM (there may exist some delay).
 
