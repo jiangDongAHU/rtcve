@@ -9,11 +9,11 @@
 
 ### File Description
 
-The original videos and source files are stored in video and source directories, respectively. All original videos are downloaded from video trace library: http://trace.eas.asu.edu/yuv/index.html
+The original videos and source files are stored in separate directories: "video" for videos and "source" for source files. All original videos can be downloaded from the video trace library at: http://trace.eas.asu.edu/yuv/index.html
 
-OpenCV, g++, ffmpeg, python3 and tkinter module need to be installed before executing the demo. 
+Before running the demo, make sure to install OpenCV, g++, ffmpeg, python3, and the tkinter module.
 
-Directly run the python script demo.py, select the original video. The script will automatically convert the selected video from YUV420(.yuv) into RGB24(.mp4) format (24FPS), complie the source files, and run the demo.
+To start the demo, simply run the Python script "demo.py" and select the original video you want to use. The script will automatically convert the selected video from YUV420 (.yuv) format to RGB24 (.mp4) format at 24 frames per second (24FPS), compile the source files,  and run the demo.
 
 The number of assistant threads, rounds of confusion and diffusion operations, etc., are declared in source/plcm.hpp:
 
@@ -41,7 +41,7 @@ The main thread randomly selects a set of parameters to initialize its PRBG, and
 
 * Input 0 : exit the program
 * Input 1 : real-time encryption using PLCM.
-* input 2 : encryption and decryption using PLCM (there may exist some delay).
+* input 2 : encryption and decryption using PLCM (there could be some delay).
 * Input 3 : real-time encryption using LASM.
-* input 4 : encryption and decryption using LASM (there may exist some delay).
+* input 4 : encryption and decryption using LASM (there could be some delay).
 
