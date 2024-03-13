@@ -1,5 +1,7 @@
 ## Real-Time Chaotic Video Encryption Based on Multithreaded Parallel Confusion and Diffusion
 
+### D. Jiang, T. Chen, Z. Yuan, W. Li, H. Wang, L. Lu. Real-time chaotic video encryption based on multi-threaded parallel confusion and diffusion. Information Sciences 666, 120420 (2024).
+
 ### Development Enviroment
 
 * Operating System : Ubuntu 20.04
